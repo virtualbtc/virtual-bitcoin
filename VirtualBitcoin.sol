@@ -10,11 +10,11 @@ contract VirtualBitcoin is ERC20, ERC165 {
     string  constant public SYMBOL = "VBTC";
     uint8   constant public DECIMALS = 8;
     uint256 constant public COIN = 10 ** uint256(DECIMALS);
-    uint256 constant public PIZZA_PRICE = 10000 * COIN;
+    uint256 constant public PIZZA_POWER_PRICE = 10000 * COIN;
     uint256 constant public MAXIMUM_SUPPLY = 21000000 * COIN;
     uint32  constant public SUBSIDY_HALVING_INTERVAL = 210000 * 10;
 
-    event BuyPizza(address indexed user, uint256 pizzaId);
+    event BuyPizza(address indexed user, uint256 pizzaId, uint256 power);
     event SellPizza(address indexed user, uint256 pizzaId);
     event Mine(address indexed user, uint256 subsidy);
 
@@ -23,16 +23,17 @@ contract VirtualBitcoin is ERC20, ERC165 {
 
     struct Pizza {
         address owner;
+        uint256 power;
         uint256 blockNumber;
         uint256 lastMinedBlockNumber;
-        uint256 pizzaCount;
+        uint256 totalPower;
     }
     Pizza[] pizzas;
-    uint256 pizzaCount;
+    uint256 totalPower;
 
     constructor() {
         genesisBlockNumber = block.number;
-        createPizza(); // genesis pizza
+        createPizza(1); // genesis pizza
     }
 
     mapping(address => uint256) private balances;
@@ -86,39 +87,44 @@ contract VirtualBitcoin is ERC20, ERC165 {
             interfaceID == 0x36372b07;
     }
 
-    function createPizza() internal returns (uint256) {
-        pizzaCount += 1;
+    function createPizza(uint256 power) internal returns (uint256) {
+        require(power > 0);
+        totalPower += power;
         uint256 pizzaId = pizzas.length;
         pizzas.push(Pizza({
             owner: msg.sender,
+            power: power,
             blockNumber: block.number,
             lastMinedBlockNumber: block.number,
-            pizzaCount: pizzaCount
+            totalPower: totalPower
         }));
         return pizzaId;
     }
 
-    function buyPizza() external returns (uint256) {
-        balances[msg.sender] -= PIZZA_PRICE;
-        uint256 pizzaId = createPizza();
-        emit BuyPizza(msg.sender, pizzaId);
+    function buyPizza(uint256 power) external returns (uint256) {
+        balances[msg.sender] -= power * PIZZA_POWER_PRICE;
+        uint256 pizzaId = createPizza(power);
+        emit BuyPizza(msg.sender, pizzaId, power);
         return pizzaId;
     }
 
     function sellPizza(uint256 pizzaId) external {
-        require(pizzas[pizzaId].owner == msg.sender);
+        
+        Pizza memory pizza = pizzas[pizzaId];
+        require(pizza.owner == msg.sender);
 
-        pizzas[pizzaId].owner = address(0);
-        pizzaCount -= 1;
+        pizza.owner = address(0);
+        totalPower -= pizza.power;
 
         pizzas.push(Pizza({
             owner: address(0),
+            power: 0,
             blockNumber: block.number,
             lastMinedBlockNumber: block.number,
-            pizzaCount: pizzaCount
+            totalPower: totalPower
         }));
 
-        balances[msg.sender] += PIZZA_PRICE;
+        balances[msg.sender] += pizza.power * PIZZA_POWER_PRICE;
 
         emit SellPizza(msg.sender, pizzaId);
     }
@@ -129,7 +135,7 @@ contract VirtualBitcoin is ERC20, ERC165 {
 
         uint256 subsidy = 0;
         uint256 pizzaIndex = pizzas.length - 1;
-        uint256 blockPizzaCount = pizzaCount;
+        uint256 blockPower = totalPower;
 
         for (uint256 blockNumber = block.number - 1; blockNumber > pizza.lastMinedBlockNumber; blockNumber -= 1) {
             if (blockSubsidyCache[blockNumber] != 0) {
@@ -137,19 +143,19 @@ contract VirtualBitcoin is ERC20, ERC165 {
             } else {
                 uint256 halvings = (blockNumber - genesisBlockNumber) / SUBSIDY_HALVING_INTERVAL;
                 if (halvings < 64) {
-                    uint256 blockSubsidy = 50 * COIN;
+                    uint256 blockSubsidy = 5 * COIN;
                     blockSubsidy >>= halvings;
 
                     while(true) {
                         Pizza memory p = pizzas[pizzaIndex];
                         if (blockNumber <= p.lastMinedBlockNumber) {
-                            blockPizzaCount = p.pizzaCount;
+                            blockPower = p.power;
                             pizzaIndex -= 1;
                         } else {
                             break;
                         }
                     }
-                    blockSubsidy /= blockPizzaCount;
+                    blockSubsidy /= blockPower;
                     subsidy += blockSubsidy;
                 }
             }
@@ -166,7 +172,7 @@ contract VirtualBitcoin is ERC20, ERC165 {
 
         uint256 subsidy = 0;
         uint256 pizzaIndex = pizzas.length - 1;
-        uint256 blockPizzaCount = pizzaCount;
+        uint256 blockPower = totalPower;
 
         for (uint256 blockNumber = block.number - 1; blockNumber > pizza.lastMinedBlockNumber; blockNumber -= 1) {
             if (blockSubsidyCache[blockNumber] != 0) {
@@ -180,13 +186,13 @@ contract VirtualBitcoin is ERC20, ERC165 {
                     while(true) {
                         Pizza memory p = pizzas[pizzaIndex];
                         if (blockNumber <= p.lastMinedBlockNumber) {
-                            blockPizzaCount = p.pizzaCount;
+                            blockPower = p.power;
                             pizzaIndex -= 1;
                         } else {
                             break;
                         }
                     }
-                    blockSubsidy /= blockPizzaCount;
+                    blockSubsidy /= blockPower;
                     subsidy += blockSubsidy;
                     blockSubsidyCache[blockNumber] = blockSubsidy;
                 }
