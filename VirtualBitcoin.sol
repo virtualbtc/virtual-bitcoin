@@ -136,10 +136,8 @@ contract VirtualBitcoin is ERC20, ERC165 {
                 subsidy += blockSubsidyCache[blockNumber];
             } else {
                 uint256 halvings = (blockNumber - genesisBlockNumber) / SUBSIDY_HALVING_INTERVAL;
-                // Force block reward to zero when right shift is undefined.
                 if (halvings < 64) {
                     uint256 blockSubsidy = 50 * COIN;
-                    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
                     blockSubsidy >>= halvings;
 
                     while(true) {
