@@ -3,6 +3,7 @@ pragma solidity ^0.8.3;
 
 import "./ERC20.sol";
 import "./ERC165.sol";
+import "./VirtualBitcoinUsable.sol";
 
 contract VirtualBitcoin is ERC20, ERC165 {
 
@@ -17,6 +18,7 @@ contract VirtualBitcoin is ERC20, ERC165 {
     event BuyPizza(address indexed user, uint256 pizzaId, uint256 power);
     event SellPizza(address indexed user, uint256 pizzaId);
     event Mine(address indexed user, uint256 subsidy);
+    event Use(address indexed user, address indexed _contract, uint256 value);
 
     uint256 private genesisBlockNumber;
     uint256 private _totalSupply;
@@ -49,7 +51,7 @@ contract VirtualBitcoin is ERC20, ERC165 {
         return balances[user];
     }
 
-    function transfer(address to, uint amount) external override returns (bool success) {
+    function transfer(address to, uint256 amount) public override returns (bool success) {
 
         balances[msg.sender] -= amount;
         balances[to] += amount;
@@ -58,17 +60,17 @@ contract VirtualBitcoin is ERC20, ERC165 {
         return true;
     }
 
-    function approve(address spender, uint amount) external override returns (bool success) {
+    function approve(address spender, uint256 amount) external override returns (bool success) {
         allowed[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
 
-    function allowance(address user, address spender) external view override returns (uint remaining) {
+    function allowance(address user, address spender) external view override returns (uint256 remaining) {
         return allowed[user][spender];
     }
 
-    function transferFrom(address from, address to, uint amount) external override returns (bool success) {
+    function transferFrom(address from, address to, uint256 amount) external override returns (bool success) {
 
         balances[from] -= amount;
         balances[to] += amount;
@@ -210,5 +212,15 @@ contract VirtualBitcoin is ERC20, ERC165 {
         _totalSupply += subsidy;
 
         emit Mine(msg.sender, subsidy);
+    }
+
+    function use(address contractAddress, uint256 amount) external returns (bool) {
+
+        require(transfer(contractAddress, amount));
+
+        VirtualBitcoinUsable _contract = VirtualBitcoinUsable(contractAddress);
+        bool success = _contract.useVirtualBitcoin(msg.sender, amount);
+        emit Use(msg.sender, contractAddress, amount);
+        return success;
     }
 }
