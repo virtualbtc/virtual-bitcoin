@@ -211,12 +211,12 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     }
 
     function use(address contractAddress, uint256 amount) external override returns (bool) {
-
-        require(transfer(contractAddress, amount));
-
         VirtualBitcoinUsable _contract = VirtualBitcoinUsable(contractAddress);
         bool success = _contract.useVirtualBitcoin(msg.sender, amount);
-        emit Use(msg.sender, contractAddress, amount);
+        if (success == true) {
+            transfer(contractAddress, amount);
+            emit Use(msg.sender, contractAddress, amount);
+        }
         return success;
     }
 }
