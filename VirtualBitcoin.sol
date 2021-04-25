@@ -145,18 +145,21 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         emit SellPizza(msg.sender, pizzaId);
     }
 
-    function blockSubsidy(uint256 fromHistoryIndex, uint256 toBlockNumber, uint256 totalPower) internal view returns (uint256) {
+    function blockSubsidy(uint256 fromHistoryIndex, uint256 fromBlockNumber, uint256 toBlockNumber, uint256 totalPower) internal view returns (uint256, uint256) {
 
         Record memory record = history[fromHistoryIndex];
+        record.blockNumber = fromBlockNumber;
 
+        uint256 historyIndex = fromHistoryIndex;
         uint256 historyLength = history.length;
         uint256 subsidy = 0;
-        for (uint256 i = fromHistoryIndex; i < historyLength; i += 1) {
 
-            Record memory next = i == historyLength - 1 ? Record({
+        for (; historyIndex < historyLength; historyIndex += 1) {
+
+            Record memory next = historyIndex == historyLength - 1 ? Record({
                 blockNumber: toBlockNumber,
                 totalPower: totalPower
-            }) : history[i + 1];
+            }) : history[historyIndex + 1];
 
             uint256 recordBlockNumber = record.blockNumber;
             uint256 nextBlockNumber = next.blockNumber;
@@ -180,12 +183,13 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
             record = next;
         }
 
-        return subsidy;
+        return (subsidy, historyIndex);
     }
 
     function subsidyOf(uint256 pizzaId) external view override returns (uint256) {        
         Pizza memory pizza = pizzas[pizzaId];
-        return blockSubsidy(pizza.minedHistoryIndex, block.number - genesisEthereumBlockNumber, _totalPower) * pizza.power;
+        (uint256 subsidy,) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, block.number - genesisEthereumBlockNumber, _totalPower);
+        return subsidy * pizza.power;
     }
 
     function mine(uint256 pizzaId, uint256 blockNumber) public override {
@@ -193,7 +197,9 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         Pizza storage pizza = pizzas[pizzaId];
         require(pizza.owner == msg.sender);
 
-        uint256 subsidy = blockSubsidy(pizza.minedHistoryIndex, blockNumber, _totalPower) * pizza.power;
+        (uint256 subsidy, uint256 historyIndex) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, blockNumber, _totalPower);
+        subsidy *= pizza.power;
+
         require(subsidy > 0);
         if (_totalSupply + subsidy > MAXIMUM_SUPPLY) {
             subsidy = MAXIMUM_SUPPLY - _totalSupply;
@@ -201,6 +207,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
         balances[msg.sender] += subsidy;
         _totalSupply += subsidy;
+        pizza.minedHistoryIndex = historyIndex;
         pizza.minedBlockNumber = blockNumber;
 
         emit Mine(msg.sender, blockNumber, subsidy);
