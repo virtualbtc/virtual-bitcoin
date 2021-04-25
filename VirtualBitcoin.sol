@@ -113,7 +113,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         pizzas.push(Pizza({
             owner: msg.sender,
             power: power,
-            minedHistoryIndex: history.length - 1,
+            minedHistoryIndex: history.length,
             minedBlockNumber: block.number - genesisEthereumBlockNumber
         }));
 
