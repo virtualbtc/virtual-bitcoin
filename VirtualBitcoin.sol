@@ -195,7 +195,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         return subsidy * pizza.power;
     }
 
-    function mine(uint256 pizzaId, uint256 toBlockNumber) public override {
+    function mine(uint256 pizzaId, uint256 toBlockNumber) public override returns (uint256) {
 
         Pizza storage pizza = pizzas[pizzaId];
         require(pizza.owner == msg.sender);
@@ -214,9 +214,10 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         pizza.minedBlockNumber = toBlockNumber;
 
         emit Mine(msg.sender, toBlockNumber, subsidy);
+        return subsidy;
     }
 
-    function mineAll(uint256 pizzaId) public override {
-        mine(pizzaId, block.number);
+    function mineAll(uint256 pizzaId) public override returns (uint256) {
+        return mine(pizzaId, block.number);
     }
 }
