@@ -2,7 +2,6 @@
 pragma solidity ^0.8.4;
 
 import "./VirtualBitcoinInterface.sol";
-import "./VirtualBitcoinUsable.sol";
 
 contract VirtualBitcoin is VirtualBitcoinInterface {
 
@@ -10,9 +9,9 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     string  constant public SYMBOL = "VBTC";
     uint8   constant public DECIMALS = 8;
     uint256 constant public COIN = 10 ** uint256(DECIMALS);
+    uint256 constant public MAX_COIN = 21000000 * COIN;
     uint256 constant public PIZZA_POWER_PRICE = 10000 * COIN;
-    uint256 constant public MAXIMUM_SUPPLY = 21000000 * COIN;
-    uint32  constant public SUBSIDY_HALVING_INTERVAL = 210000 * 10;
+    uint32  constant public SUBSIDY_HALVING_INTERVAL = 210000 * 20;
     uint32  constant public SUBSIDY_BLOCK_LIMIT = 64 * SUBSIDY_HALVING_INTERVAL;
 
     uint256 public genesisEthereumBlockNumber;
@@ -47,7 +46,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
         genesisEthereumBlockNumber = block.number;
 
-        uint256 amount = 5 * COIN;
+        uint256 amount = 25 * COIN / 10;
         uint256 blockNumber = 0;
         for (uint8 i = 0; i < 64; i += 1) {
             subsidies.push(Subsidy({
@@ -97,13 +96,17 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
     function recordHistory() internal {
         
-        uint256 blockNumber = block.number - genesisEthereumBlockNumber;
+        uint256 blockNumber = block.number;
         require(blockNumber < SUBSIDY_BLOCK_LIMIT);
 
         history.push(Record({
             blockNumber: blockNumber,
             totalPower: _totalPower
         }));
+    }
+
+    function pizzaPrice(uint256 power) external pure override returns (uint256) {
+        return power * PIZZA_POWER_PRICE;
     }
 
     function createPizza(uint256 power) internal returns (uint256) {
@@ -114,7 +117,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
             owner: msg.sender,
             power: power,
             minedHistoryIndex: history.length,
-            minedBlockNumber: block.number - genesisEthereumBlockNumber
+            minedBlockNumber: block.number
         }));
 
         _totalPower += power;
@@ -188,42 +191,32 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
     function subsidyOf(uint256 pizzaId) external view override returns (uint256) {        
         Pizza memory pizza = pizzas[pizzaId];
-        (uint256 subsidy,) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, block.number - genesisEthereumBlockNumber, _totalPower);
+        (uint256 subsidy,) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, block.number, _totalPower);
         return subsidy * pizza.power;
     }
 
-    function mine(uint256 pizzaId, uint256 blockNumber) public override {
+    function mine(uint256 pizzaId, uint256 toBlockNumber) public override {
 
         Pizza storage pizza = pizzas[pizzaId];
         require(pizza.owner == msg.sender);
 
-        (uint256 subsidy, uint256 historyIndex) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, blockNumber, _totalPower);
+        (uint256 subsidy, uint256 historyIndex) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, toBlockNumber, _totalPower);
         subsidy *= pizza.power;
 
         require(subsidy > 0);
-        if (_totalSupply + subsidy > MAXIMUM_SUPPLY) {
-            subsidy = MAXIMUM_SUPPLY - _totalSupply;
+        if (_totalSupply + subsidy > MAX_COIN) {
+            subsidy = MAX_COIN - _totalSupply;
         }
 
         balances[msg.sender] += subsidy;
         _totalSupply += subsidy;
         pizza.minedHistoryIndex = historyIndex;
-        pizza.minedBlockNumber = blockNumber;
+        pizza.minedBlockNumber = toBlockNumber;
 
-        emit Mine(msg.sender, blockNumber, subsidy);
+        emit Mine(msg.sender, toBlockNumber, subsidy);
     }
 
     function mineAll(uint256 pizzaId) public override {
-        mine(pizzaId, block.number - genesisEthereumBlockNumber);
-    }
-
-    function use(address contractAddress, uint256 amount) external override returns (bool) {
-        VirtualBitcoinUsable _contract = VirtualBitcoinUsable(contractAddress);
-        bool success = _contract.useVirtualBitcoin(msg.sender, amount);
-        if (success == true) {
-            transfer(contractAddress, amount);
-            emit Use(msg.sender, contractAddress, amount);
-        }
-        return success;
+        mine(pizzaId, block.number);
     }
 }
