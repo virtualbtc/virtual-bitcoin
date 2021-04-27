@@ -96,17 +96,19 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         return true;
     }
 
-    function subsidiesRealBlockConverter(uint8 i) external view returns (uint256) {
-        return subsidies[i].blockNumber + genesisEthereumBlockNumber;
+    function subsidiesRealBlockConverter(uint8 i) external view returns (uint256, uint256) {
+        return (subsidies[i].blockNumber + genesisEthereumBlockNumber, subsidies[i].amount);
     }
     
-    //Gas inefficient check for about 130 years.
-    function recordHistory() internal {
-        if(block.number - genesisEthereumBlockNumber < SUBSIDY_BLOCK_LIMIT) {
+    //Gas inefficient check for about 56 years.
+    function recordHistory(uint256 pizzaId, uint8 typeId) internal {
+        if(block.number - genesisEthereumBlockNumber < SUBSIDY_HALVING_INTERVAL * 28) {
             history.push(Record({
                 blockNumber: block.number,
                 totalPower: _totalPower
             }));
+        } else if(typeId == 0) {
+            pizzas[pizzaId].minedHistoryIndex = type(uint256).max;
         }
     }
 
@@ -133,27 +135,27 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     function buyPizza(uint256 power) external override returns (uint256) {
         balances[msg.sender] -= power * PIZZA_POWER_PRICE;
         uint256 pizzaId = createPizza(power);
-        recordHistory();
+        recordHistory(pizzaId, 0);
         emit BuyPizza(msg.sender, pizzaId, power);
         return pizzaId;
     }
 
     function sellPizza(uint256 pizzaId) external override {
         Pizza storage pizza = pizzas[pizzaId];
+        require(pizzaId != 0);
         require(pizza.owner == msg.sender);
 
         uint256 power = pizza.power;
         mineAll(pizzaId);
         pizza.owner = address(0);
         _totalPower -= power;
-        recordHistory();
+        recordHistory(pizzaId, 1);
 
         balances[msg.sender] += power * PIZZA_POWER_PRICE;
 
         emit SellPizza(msg.sender, pizzaId);
     }
 
-    //if history[135791].blockNumber is between 15th halving and 16th halving and history[135792].blockNumber is after 18th halving, 16th halving and 17th halving isn't considered in this method.
     function blockSubsidy(uint256 fromHistoryIndex, uint256 fromBlockNumber, uint256 toBlockNumber) internal view returns (uint256, uint256) {
         Record memory record = history[fromHistoryIndex];
         record.blockNumber = fromBlockNumber;
@@ -178,12 +180,17 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
             uint256 divided = (recordBlockNumber - genesisBlockNumber) / SUBSIDY_HALVING_INTERVAL;
             uint256 nextDivided = (nextBlockNumber - genesisBlockNumber) / SUBSIDY_HALVING_INTERVAL;
-            if (divided != nextDivided) {
-                uint256 boundary = nextDivided * SUBSIDY_HALVING_INTERVAL + genesisBlockNumber;
-                subsidy += (boundary - recordBlockNumber) * subsidies[divided].amount / record.totalPower;
-                subsidy += (nextBlockNumber - boundary) * subsidies[nextDivided].amount / record.totalPower;
-            } else {
+            if (divided == nextDivided) {
                 subsidy += (nextBlockNumber - recordBlockNumber) * subsidies[divided].amount / record.totalPower;
+            } else {
+                uint256 span = nextDivided - divided;
+                uint256 boundary = (divided + 1) * SUBSIDY_HALVING_INTERVAL + genesisBlockNumber;
+                subsidy += (boundary - recordBlockNumber) * subsidies[divided].amount / record.totalPower;
+                for(uint256 j = 1; j < span; j += 1) {
+                    boundary = (divided + j + 1) * SUBSIDY_HALVING_INTERVAL + genesisBlockNumber;
+                    subsidy += SUBSIDY_HALVING_INTERVAL * subsidies[divided + j].amount / record.totalPower;
+                }
+                subsidy += (nextBlockNumber - boundary) * subsidies[nextDivided].amount / record.totalPower;
             }
 
             if (nextBlockNumber == toBlockNumber) {
@@ -198,22 +205,21 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     function subsidyOf(uint256 pizzaId) external view override returns (uint256) {
         Pizza memory pizza = pizzas[pizzaId];
         if(pizza.owner == address(0)) return 0;
-        (uint256 subsidy,) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, block.number);
+        uint256 lastMiningBlock = SUBSIDY_HALVING_INTERVAL * 28 + genesisEthereumBlockNumber;
+        (uint256 subsidy,) = block.number > lastMiningBlock ? blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, lastMiningBlock) : blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, block.number);
         return subsidy * pizza.power;
     }
 
     function mine(uint256 pizzaId, uint256 toBlockNumber) public override returns (uint256) {
         require(toBlockNumber <= block.number);
+        uint256 lastMiningBlock = SUBSIDY_HALVING_INTERVAL * 28 + genesisEthereumBlockNumber;
+        if(toBlockNumber > lastMiningBlock) toBlockNumber = lastMiningBlock;
+
         Pizza storage pizza = pizzas[pizzaId];
         require(pizza.owner == msg.sender);
 
         (uint256 subsidy, uint256 historyIndex) = blockSubsidy(pizza.minedHistoryIndex, pizza.minedBlockNumber, toBlockNumber);
         subsidy *= pizza.power;
-
-        require(subsidy > 0);
-        if (_totalSupply + subsidy > MAX_COIN) {
-            subsidy = MAX_COIN - _totalSupply;
-        }
 
         balances[msg.sender] += subsidy;
         _totalSupply += subsidy;
