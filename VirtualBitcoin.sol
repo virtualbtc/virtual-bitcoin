@@ -174,6 +174,10 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         emit SellPizza(msg.sender, pizzaId);
     }
 
+    function powerOf(uint256 pizzaId) external view override returns (uint256) {
+        return pizzas[pizzaId].power;
+    }
+
     function subsidyOf(uint256 pizzaId) external view override returns (uint256) {
         Pizza memory pizza = pizzas[pizzaId];
         if (pizza.owner == address(0)) {

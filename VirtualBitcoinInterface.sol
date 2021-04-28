@@ -25,6 +25,7 @@ interface VirtualBitcoinInterface {
     function buyPizza(uint256 power) external returns (uint256);
     function sellPizza(uint256 pizzaId) external;
     function changePizza(uint256 pizzaId, uint256 power) external;
+    function powerOf(uint256 pizzaId) external view returns (uint256);
     function subsidyOf(uint256 pizzaId) external view returns (uint256);
     function mine(uint256 pizzaId) external returns (uint256);
 }
