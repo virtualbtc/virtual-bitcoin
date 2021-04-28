@@ -107,11 +107,14 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
     function makePizza(uint256 power) internal returns (uint256) {
         require(power > 0);
+        
+        uint256 pizzaId = pizzas.length;
 
-        accSubsidy = calculateAccSubsidy();
+        if (pizzaId != 0) {
+            accSubsidy = calculateAccSubsidy();
+        }
         accSubsidyBlock = block.number;
 
-        uint256 pizzaId = pizzas.length;
         pizzas.push(Pizza({
             owner: msg.sender,
             power: power,
