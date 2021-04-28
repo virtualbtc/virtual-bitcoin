@@ -28,8 +28,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     }
     Pizza[] public pizzas;
 
-    uint256 private accSubsidyBlock;
-
+    uint256 public accSubsidyBlock;
     uint256 public accSubsidy;
     uint256 public totalPower;
 
@@ -134,7 +133,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         return pizzaId;
     }
 
-    function changePizzaPower(uint256 pizzaId, uint256 power) external override {
+    function changePizza(uint256 pizzaId, uint256 power) external override {
 
         Pizza storage pizza = pizzas[pizzaId];
         require(pizzaId != 0);
@@ -156,7 +155,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
             balances[msg.sender] += diff * PIZZA_POWER_PRICE;
         }
         
-        emit ChangePizzaPower(msg.sender, pizzaId, power);
+        emit ChangePizza(msg.sender, pizzaId, power);
     }
 
     function sellPizza(uint256 pizzaId) external override {

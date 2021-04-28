@@ -6,7 +6,7 @@ interface VirtualBitcoinInterface {
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event Approval(address indexed owner, address indexed spender, uint256 amount);
     event BuyPizza(address indexed owner, uint256 indexed pizzaId, uint256 power);
-    event ChangePizzaPower(address indexed owner, uint256 indexed pizzaId, uint256 power);
+    event ChangePizza(address indexed owner, uint256 indexed pizzaId, uint256 power);
     event SellPizza(address indexed owner, uint256 indexed pizzaId);
     event Mine(address indexed owner, uint256 indexed pizzaId, uint256 subsidy);
 
@@ -24,7 +24,7 @@ interface VirtualBitcoinInterface {
     function pizzaPrice(uint256 power) external view returns (uint256);
     function buyPizza(uint256 power) external returns (uint256);
     function sellPizza(uint256 pizzaId) external;
-    function changePizzaPower(uint256 pizzaId, uint256 power) external;
+    function changePizza(uint256 pizzaId, uint256 power) external;
     function subsidyOf(uint256 pizzaId) external view returns (uint256);
     function mine(uint256 pizzaId) external returns (uint256);
 }
