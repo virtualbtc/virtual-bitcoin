@@ -144,7 +144,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         mine(pizzaId);
 
         pizza.power = power;
-    
+
         if (currentPower < power) { // upgrade
             uint256 diff = power - currentPower;
             totalPower += diff;
