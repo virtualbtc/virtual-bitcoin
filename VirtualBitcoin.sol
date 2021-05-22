@@ -13,7 +13,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     uint256 constant public MAX_COIN = 21000000 * COIN;
     uint256 constant public PIZZA_POWER_PRICE = 10000 * COIN;
     uint256 immutable public genesisEthBlock;
-    uint256 constant public PRECISION = 1e15;
+    uint256 constant public PRECISION = 1e4;
     uint256 private _totalSupply;
     mapping(address => uint256) private balances;
     mapping(address => mapping(address => uint256)) private allowed;
