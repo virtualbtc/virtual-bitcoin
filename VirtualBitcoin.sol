@@ -12,8 +12,10 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     uint32  constant public SUBSIDY_HALVING_INTERVAL = 210000 * 20;
     uint256 constant public MAX_COIN = 21000000 * COIN;
     uint256 constant public PIZZA_POWER_PRICE = 10000 * COIN;
-    uint256 immutable public genesisEthBlock;
     uint256 constant public PRECISION = 1e4;
+
+    uint256 immutable public genesisEthBlock;
+
     uint256 private _totalSupply;
     mapping(address => uint256) private balances;
     mapping(address => mapping(address => uint256)) private allowed;
@@ -72,7 +74,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
     function transferFrom(address from, address to, uint256 amount) external override returns (bool success) {
         uint256 _allowance = allowed[from][msg.sender];
-        if(_allowance != type(uint256).max) {
+        if (_allowance != type(uint256).max) {
             allowed[from][msg.sender] = _allowance - amount;
         }
         balances[from] -= amount;
@@ -97,8 +99,12 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         return power * PIZZA_POWER_PRICE;
     }
 
-    function subsidyAt(uint256 blocknumber) public view override returns (uint256 amount) {
-        uint256 era = (blocknumber - genesisEthBlock) / SUBSIDY_HALVING_INTERVAL;
+    function pizzaCount() external view override returns (uint256) {
+        return pizzas.length;
+    }
+
+    function subsidyAt(uint256 blockNumber) public view override returns (uint256 amount) {
+        uint256 era = (blockNumber - genesisEthBlock) / SUBSIDY_HALVING_INTERVAL;
         amount = 25 * COIN / 10 / (2 ** era);
     }
 
@@ -126,9 +132,8 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
     function makePizza(uint256 power) internal returns (uint256) {
         require(power > 0);
-        
-        uint256 pizzaId = pizzas.length;
 
+        uint256 pizzaId = pizzas.length;
         uint256 _accSubsidy = update();
 
         pizzas.push(Pizza({
@@ -138,7 +143,6 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         }));
 
         totalPower += power;
-        
         return pizzaId;
     }
 
@@ -153,13 +157,15 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         Pizza storage pizza = pizzas[pizzaId];
         require(pizzaId != 0);
         require(pizza.owner == msg.sender);
-        
+
         uint256 currentPower = pizza.power;
         require(currentPower != power);
 
         uint256 _accSubsidy = update();
         uint256 subsidy = _accSubsidy * currentPower / PRECISION - pizza.accSubsidy;
-        if (subsidy > 0) mint(msg.sender, subsidy);
+        if (subsidy > 0) {
+            mint(msg.sender, subsidy);
+        }
         emit Mine(msg.sender, pizzaId, subsidy);
 
         if (currentPower < power) { // upgrade
@@ -174,10 +180,10 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
         pizza.accSubsidy = _accSubsidy * power / PRECISION;
         pizza.power = power;
-        
+
         emit ChangePizza(msg.sender, pizzaId, power);
     }
-    
+
     function sellPizza(uint256 pizzaId) external override {
         Pizza storage pizza = pizzas[pizzaId];
         require(pizzaId != 0);
@@ -210,19 +216,19 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         uint256 power = pizza.power;
 
         uint256 _accSubsidy = update();
-
         uint256 subsidy = _accSubsidy * power / PRECISION - pizza.accSubsidy;
-        if (subsidy > 0) mint(msg.sender, subsidy);
-        
+        if (subsidy > 0) {
+            mint(msg.sender, subsidy);
+        }
+
         pizza.accSubsidy = _accSubsidy * power / PRECISION;
         emit Mine(msg.sender, pizzaId, subsidy);
         return subsidy;
     }
 
     function update() internal returns (uint256 _accSubsidy) {
-        if(accSubsidyBlock != block.number) {
+        if (accSubsidyBlock != block.number) {
             _accSubsidy = calculateAccSubsidy();
-
             accSubsidy = _accSubsidy;
             accSubsidyBlock = block.number;
         } else {

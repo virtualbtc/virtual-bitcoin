@@ -21,8 +21,9 @@ interface VirtualBitcoinInterface {
     function approve(address spender, uint256 amount) external returns (bool success);
     function allowance(address owner, address spender) external view returns (uint256 remaining);
 
-    function subsidyAt(uint256 blocknumber) external view returns (uint256);
     function pizzaPrice(uint256 power) external view returns (uint256);
+    function pizzaCount() external view returns (uint256);
+    function subsidyAt(uint256 blockNumber) external view returns (uint256);
     function buyPizza(uint256 power) external returns (uint256);
     function sellPizza(uint256 pizzaId) external;
     function changePizza(uint256 pizzaId, uint256 power) external;
