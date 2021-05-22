@@ -84,23 +84,25 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
     function mint(address to, uint256 amount) internal {
         balances[to] += amount;
         _totalSupply += amount;
+        emit Transfer(address(0), to, amount);
     }
 
     function collect(address to, uint256 amount) internal {
         balances[address(this)] -= amount;
         balances[to] += amount;
+        emit Transfer(address(this), to, amount);
     }
 
     function pizzaPrice(uint256 power) external pure override returns (uint256) {
         return power * PIZZA_POWER_PRICE;
     }
 
-    function subsidyAt(uint256 blocknumber) public view returns (uint256 amount) {
+    function subsidyAt(uint256 blocknumber) public view override returns (uint256 amount) {
         uint256 era = (blocknumber - genesisEthBlock) / SUBSIDY_HALVING_INTERVAL;
         amount = 25 * COIN / 10 / (2 ** era);
     }
 
-    function calculateAccVBTCPerShare() internal view returns (uint256) {
+    function calculateAccSubsidy() internal view returns (uint256) {
         uint256 _accSubsidyBlock = accSubsidyBlock;
         uint256 subsidy = 0;
         uint256 era1 = (_accSubsidyBlock - genesisEthBlock) / SUBSIDY_HALVING_INTERVAL;
@@ -199,7 +201,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
         if (pizza.owner == address(0)) {
             return 0;
         }
-        return calculateAccVBTCPerShare() * pizza.power / PRECISION - pizza.accSubsidy;
+        return calculateAccSubsidy() * pizza.power / PRECISION - pizza.accSubsidy;
     }
 
     function mine(uint256 pizzaId) public override returns (uint256) {
@@ -219,7 +221,7 @@ contract VirtualBitcoin is VirtualBitcoinInterface {
 
     function update() internal returns (uint256 _accSubsidy) {
         if(accSubsidyBlock != block.number) {
-            _accSubsidy = calculateAccVBTCPerShare();
+            _accSubsidy = calculateAccSubsidy();
 
             accSubsidy = _accSubsidy;
             accSubsidyBlock = block.number;
